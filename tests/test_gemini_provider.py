@@ -434,6 +434,52 @@ class TestAutoConfig:
         assert provider.model == "gemini-pro"
 
 
+class TestVerifySsl:
+    def test_default_enables_tls_verification(self):
+        provider = GeminiProvider(api_key="k")
+        assert provider._ssl_context is None
+
+    def test_explicit_false_disables_tls(self):
+        provider = GeminiProvider(api_key="k", verify_ssl=False)
+        assert provider._ssl_context is not None
+        import ssl
+        assert provider._ssl_context.verify_mode == ssl.CERT_NONE
+
+    def test_explicit_true_enables_tls(self):
+        provider = GeminiProvider(api_key="k", verify_ssl=True)
+        assert provider._ssl_context is None
+
+    @patch.dict("os.environ", {"EDGE_AGENT_VERIFY_SSL": "false"}, clear=False)
+    def test_env_var_false_disables_tls(self):
+        provider = GeminiProvider(api_key="k")
+        assert provider._ssl_context is not None
+
+    @patch.dict("os.environ", {"EDGE_AGENT_VERIFY_SSL": "0"}, clear=False)
+    def test_env_var_zero_disables_tls(self):
+        provider = GeminiProvider(api_key="k")
+        assert provider._ssl_context is not None
+
+    @patch.dict("os.environ", {"EDGE_AGENT_VERIFY_SSL": "no"}, clear=False)
+    def test_env_var_no_disables_tls(self):
+        provider = GeminiProvider(api_key="k")
+        assert provider._ssl_context is not None
+
+    @patch.dict("os.environ", {"EDGE_AGENT_VERIFY_SSL": "true"}, clear=False)
+    def test_env_var_true_enables_tls(self):
+        provider = GeminiProvider(api_key="k")
+        assert provider._ssl_context is None
+
+    @patch.dict("os.environ", {"EDGE_AGENT_VERIFY_SSL": "false"}, clear=False)
+    def test_explicit_true_overrides_env_var(self):
+        provider = GeminiProvider(api_key="k", verify_ssl=True)
+        assert provider._ssl_context is None
+
+    @patch.dict("os.environ", {"EDGE_AGENT_VERIFY_SSL": "true"}, clear=False)
+    def test_explicit_false_overrides_env_var(self):
+        provider = GeminiProvider(api_key="k", verify_ssl=False)
+        assert provider._ssl_context is not None
+
+
 class TestApiKeySafety:
     def test_api_key_not_in_repr(self):
         provider = GeminiProvider(api_key="sk-very-secret-key-12345")

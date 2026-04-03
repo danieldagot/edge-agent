@@ -1,6 +1,6 @@
 # edge-agent
 
-**Edge Agent** is a small, modern AI agent framework for Python 3.13+: tools, multi-step tool chaining, MCP servers, typed agent pipelines (guardrails, routers, evaluators, fallbacks), interactive sessions, and a swappable LLM provider — implemented in a **compact, readable codebase** with **zero runtime dependencies** (stdlib only).
+**Edge Agent** is a small, modern AI agent framework for Python 3.11+: tools, multi-step tool chaining, MCP servers, typed agent pipelines (guardrails, routers, evaluators, fallbacks), interactive sessions, and a swappable LLM provider — implemented in a **compact, readable codebase** with **zero runtime dependencies** (stdlib only).
 
 Many popular agent stacks make simple workflows feel heavyweight: large dependency trees, lots of boilerplate, and framework surface area that dwarfs the problem you are solving. Edge Agent is built for the opposite: **full-featured agent behavior without the bloat**, so you can ship agents that stay easy to read, test, and own.
 
@@ -898,12 +898,15 @@ session.start()
 from edge_agent.providers import GeminiProvider
 
 provider = GeminiProvider(
-    model="gemini-2.5-flash",   # optional, has a sensible default
-    api_key="your-key",         # optional, resolved from env
+    model="gemini-3.1-flash-lite-preview",  # optional, has a sensible default
+    api_key="your-key",                     # optional, resolved from env
+    verify_ssl=False,                       # optional, default True — disable for local dev
 )
 ```
 
 You can also set the default model with the **`EDGE_AGENT_MODEL`** environment variable (legacy: **`TINYAGENT_MODEL`**).
+
+TLS certificate verification is **enabled by default**. To disable it (e.g. behind a corporate proxy), pass `verify_ssl=False` or set `EDGE_AGENT_VERIFY_SSL=false` in your environment.
 
 ### Custom Providers
 

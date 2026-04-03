@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import dataclasses
+import enum
 import inspect
-from typing import Any, Callable, get_type_hints
+import types
+from typing import Any, Callable, Literal, Union, get_args, get_origin, get_type_hints
 
 _PYTHON_TYPE_TO_JSON: dict[type, str] = {
     str: "string",
@@ -12,12 +15,55 @@ _PYTHON_TYPE_TO_JSON: dict[type, str] = {
     dict: "object",
 }
 
+_JSON_TYPE_FOR_LITERAL: dict[type, str] = {
+    str: "string",
+    int: "integer",
+    float: "number",
+    bool: "boolean",
+}
 
-def _json_type(py_type: type) -> str:
-    origin = getattr(py_type, "__origin__", None)
-    if origin is not None:
-        py_type = origin
-    return _PYTHON_TYPE_TO_JSON.get(py_type, "string")
+
+def _build_property_schema(py_type: type) -> dict[str, Any]:
+    """Build a JSON Schema fragment for a single Python type annotation."""
+    origin = get_origin(py_type)
+    args = get_args(py_type)
+
+    # Optional[X] / X | None  →  anyOf with null
+    if origin is Union or isinstance(py_type, types.UnionType):
+        non_none = [a for a in args if a is not type(None)]
+        if len(non_none) == 1 and len(args) == 2:
+            return {"anyOf": [_build_property_schema(non_none[0]), {"type": "null"}]}
+        return {"anyOf": [_build_property_schema(a) for a in args]}
+
+    # Literal["a", "b"] / Literal[1, 2]
+    if origin is Literal:
+        value_types = {type(v) for v in args}
+        json_type = "string"
+        if len(value_types) == 1:
+            json_type = _JSON_TYPE_FOR_LITERAL.get(value_types.pop(), "string")
+        return {"type": json_type, "enum": list(args)}
+
+    # Enum subclass
+    if isinstance(py_type, type) and issubclass(py_type, enum.Enum):
+        values = [e.value for e in py_type]
+        value_types = {type(v) for v in values}
+        json_type = "string"
+        if len(value_types) == 1:
+            json_type = _JSON_TYPE_FOR_LITERAL.get(value_types.pop(), "string")
+        return {"type": json_type, "enum": values}
+
+    # Dataclass  →  nested object schema
+    if isinstance(py_type, type) and dataclasses.is_dataclass(py_type):
+        from edge_agent.schema import schema_from_dataclass
+        return schema_from_dataclass(py_type)
+
+    # list[X]  →  array with typed items
+    if origin is list and args:
+        return {"type": "array", "items": _build_property_schema(args[0])}
+
+    # Bare primitive / fallback
+    base = origin if origin is not None else py_type
+    return {"type": _PYTHON_TYPE_TO_JSON.get(base, "string")}
 
 
 class Tool:
@@ -55,8 +101,7 @@ def _build_parameters_schema(fn: Callable[..., Any]) -> dict[str, Any]:
 
     for param_name, param in sig.parameters.items():
         py_type = hints.get(param_name, str)
-        prop: dict[str, str] = {"type": _json_type(py_type)}
-        properties[param_name] = prop
+        properties[param_name] = _build_property_schema(py_type)
 
         if param.default is inspect.Parameter.empty:
             required.append(param_name)

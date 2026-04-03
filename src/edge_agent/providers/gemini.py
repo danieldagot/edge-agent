@@ -102,7 +102,7 @@ class GeminiProvider(Provider):
         api_key: str | None = None,
         model: str | None = None,
         timeout: int = DEFAULT_TIMEOUT,
-        verify_ssl: bool = False,
+        verify_ssl: bool | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
     ) -> None:
@@ -118,6 +118,9 @@ class GeminiProvider(Provider):
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_backoff = retry_backoff
+        if verify_ssl is None:
+            env_val = os.environ.get("EDGE_AGENT_VERIFY_SSL", "").lower()
+            verify_ssl = env_val not in ("false", "0", "no") if env_val else True
         self._ssl_context: ssl.SSLContext | None = None
         if not verify_ssl:
             self._ssl_context = ssl.create_default_context()

@@ -20,7 +20,7 @@ logger = get_logger("template")
 
 
 def _fetch_url(url: str) -> str:
-    """Fetch *url* with safety restrictions against SSRF / LFI."""
+    """Fetch *url*.  Only http(s) schemes are accepted; no host filtering is applied."""
     if not url.startswith(("https://", "http://")):
         raise ValueError(
             f"Only http(s) URLs are allowed in {{{{url:…}}}} "

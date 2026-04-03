@@ -1,3 +1,7 @@
+import dataclasses
+import enum
+from typing import Literal, Optional
+
 from edge_agent import tool
 from edge_agent.tool import Tool
 
@@ -107,6 +111,106 @@ class TestToolDecorator:
             return str(x)
 
         assert f.parameters["properties"]["x"]["type"] == "array"
+
+    def test_type_mapping_list_of_str(self):
+        @tool
+        def f(x: list[str]) -> str:
+            """Test."""
+            return str(x)
+
+        prop = f.parameters["properties"]["x"]
+        assert prop == {"type": "array", "items": {"type": "string"}}
+
+    def test_type_mapping_list_of_int(self):
+        @tool
+        def f(x: list[int]) -> str:
+            """Test."""
+            return str(x)
+
+        prop = f.parameters["properties"]["x"]
+        assert prop == {"type": "array", "items": {"type": "integer"}}
+
+    def test_type_mapping_optional_str(self):
+        @tool
+        def f(x: Optional[str] = None) -> str:
+            """Test."""
+            return str(x)
+
+        prop = f.parameters["properties"]["x"]
+        assert prop == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+
+    def test_type_mapping_union_none(self):
+        @tool
+        def f(x: str | None = None) -> str:
+            """Test."""
+            return str(x)
+
+        prop = f.parameters["properties"]["x"]
+        assert prop == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+
+    def test_type_mapping_literal_strings(self):
+        @tool
+        def f(mode: Literal["fast", "slow"]) -> str:
+            """Test."""
+            return mode
+
+        prop = f.parameters["properties"]["mode"]
+        assert prop == {"type": "string", "enum": ["fast", "slow"]}
+
+    def test_type_mapping_literal_ints(self):
+        @tool
+        def f(level: Literal[1, 2, 3]) -> str:
+            """Test."""
+            return str(level)
+
+        prop = f.parameters["properties"]["level"]
+        assert prop == {"type": "integer", "enum": [1, 2, 3]}
+
+    def test_type_mapping_enum(self):
+        class Color(enum.Enum):
+            RED = "red"
+            GREEN = "green"
+            BLUE = "blue"
+
+        @tool
+        def f(color: Color) -> str:
+            """Test."""
+            return color.value
+
+        prop = f.parameters["properties"]["color"]
+        assert prop == {"type": "string", "enum": ["red", "green", "blue"]}
+
+    def test_type_mapping_nested_dataclass(self):
+        @dataclasses.dataclass
+        class Address:
+            street: str
+            city: str
+
+        @tool
+        def f(addr: Address) -> str:
+            """Test."""
+            return addr.city
+
+        prop = f.parameters["properties"]["addr"]
+        assert prop["type"] == "object"
+        assert "street" in prop["properties"]
+        assert "city" in prop["properties"]
+        assert set(prop["required"]) == {"street", "city"}
+
+    def test_type_mapping_list_of_dataclass(self):
+        @dataclasses.dataclass
+        class Item:
+            name: str
+
+        @tool
+        def f(items: list[Item]) -> str:
+            """Test."""
+            return ""
+
+        prop = f.parameters["properties"]["items"]
+        assert prop["type"] == "array"
+        assert prop["items"]["type"] == "object"
+        assert "name" in prop["items"]["properties"]
 
     def test_decorated_function_is_callable(self):
         @tool
