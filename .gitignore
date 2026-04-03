@@ -12,6 +12,7 @@ wheels/
 # Secrets
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 id_rsa

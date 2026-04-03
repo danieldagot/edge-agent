@@ -4,6 +4,8 @@
 
 Many popular agent stacks make simple workflows feel heavyweight: large dependency trees, lots of boilerplate, and framework surface area that dwarfs the problem you are solving. Edge Agent is built for the opposite: **full-featured agent behavior without the bloat**, so you can ship agents that stay easy to read, test, and own.
 
+> **Currently supported: Gemini only.** Edge Agent ships with a single built-in provider for Google's Gemini models. The provider interface is open for extension — see [Custom Providers](#custom-providers) to add your own.
+
 ## Features
 
 - **Zero runtime dependencies** — uses only the Python standard library
@@ -46,10 +48,6 @@ That's **0.034 MB** for the installable wheel — the entire footprint.
 
 A local checkout may show a larger footprint on disk (for example ~200 KB) because of `__pycache__` and compiled `.pyc` files; those are not part of the published wheel. To see the exact distribution size, build the wheel (`uv build`) and check the `.whl` in `dist/`.
 
-### Migrating from `tinyagent`
-
-The PyPI distribution name is **`edge-agent`**; the Python package is **`edge_agent`**. Replace `from tinyagent import ...` with `from edge_agent import ...`. For the default Gemini model, set **`EDGE_AGENT_MODEL`** (preferred); the legacy **`TINYAGENT_MODEL`** env var is still read if `EDGE_AGENT_MODEL` is unset.
-
 ## Quick Start
 
 ```python
@@ -73,7 +71,7 @@ print(result.steps)    # execution trace with tool call details
 
 `Agent.run()` returns a `RunResult` — see [Execution Tracing](#execution-tracing) for details.
 
-The API key is resolved automatically from `GEMINI_API_KEY` or `GOOGLE_API_KEY` environment variables (`.env` files are loaded automatically).
+**Note:** Edge Agent currently ships with a **Gemini provider only**. You need a [Google AI API key](https://aistudio.google.com/apikey) to use it. The API key is resolved automatically from `GEMINI_API_KEY` or `GOOGLE_API_KEY` environment variables (`.env` files are loaded automatically). See [`.env.example`](.env.example) for the required format.
 
 ## Defining Tools
 
@@ -909,7 +907,7 @@ You can also set the default model with the **`EDGE_AGENT_MODEL`** environment v
 
 ### Custom Providers
 
-Implement the `Provider` abstract class:
+You can add support for any LLM by implementing the `Provider` abstract class:
 
 ```python
 from edge_agent.providers import Provider
