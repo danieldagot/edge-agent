@@ -1,6 +1,6 @@
 [project]
 name = "edge-agent"
-version = "0.1.0"
+version = "0.3.0"
 description = "Small stdlib-only agent framework with tools, MCP, chains, and modern agent types"
 readme = "README.md"
 license = { text = "MIT" }
@@ -16,3 +16,8 @@ dev = ["pytest>=8.0"]
 [build-system]
 requires = ["uv_build>=0.9.30,<0.10.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

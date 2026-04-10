@@ -4,7 +4,7 @@
 
 Many popular agent stacks make simple workflows feel heavyweight: large dependency trees, lots of boilerplate, and framework surface area that dwarfs the problem you are solving. Edge Agent is built for the opposite: **full-featured agent behavior without the bloat**, so you can ship agents that stay easy to read, test, and own.
 
-> **Currently supported: Gemini only.** Edge Agent ships with a single built-in provider for Google's Gemini models. The provider interface is open for extension — see [Custom Providers](#custom-providers) to add your own.
+> **Built-in providers: Gemini and Ollama.** Edge Agent ships with providers for Google's Gemini models and locally running Ollama instances. The provider interface is open for extension — see [Custom Providers](#custom-providers) to add your own.
 
 ## Features
 
@@ -41,10 +41,10 @@ Edge Agent has **no runtime dependencies**, so installing it only adds its own s
 
 | Artifact | Size |
 |---|---|
-| Wheel (`.whl`) — what gets installed | **34 KB** |
-| Source distribution (`.tar.gz`) | **36 KB** |
+| Wheel (`.whl`) — what gets installed | **38 KB** |
+| Source distribution (`.tar.gz`) | **41 KB** |
 
-That's **0.034 MB** for the installable wheel — the entire footprint.
+That's **0.038 MB** for the installable wheel — the entire footprint.
 
 A local checkout may show a larger footprint on disk (for example ~200 KB) because of `__pycache__` and compiled `.pyc` files; those are not part of the published wheel. To see the exact distribution size, build the wheel (`uv build`) and check the `.whl` in `dist/`.
 
@@ -71,7 +71,7 @@ print(result.steps)    # execution trace with tool call details
 
 `Agent.run()` returns a `RunResult` — see [Execution Tracing](#execution-tracing) for details.
 
-**Note:** Edge Agent currently ships with a **Gemini provider only**. You need a [Google AI API key](https://aistudio.google.com/apikey) to use it. The API key is resolved automatically from `GEMINI_API_KEY` or `GOOGLE_API_KEY` environment variables (`.env` files are loaded automatically). See [`.env.example`](.env.example) for the required format.
+**Note:** Edge Agent ships with **Gemini** and **Ollama** providers. For Gemini, you need a [Google AI API key](https://aistudio.google.com/apikey) — resolved automatically from `GEMINI_API_KEY` or `GOOGLE_API_KEY` environment variables (`.env` files are loaded automatically). See [`.env.example`](.env.example) for the required format. For Ollama, see [Ollama provider](#ollama).
 
 ## Defining Tools
 
@@ -908,6 +908,35 @@ You can also set the default model with the **`EDGE_AGENT_MODEL`** environment v
 
 TLS certificate verification is **enabled by default**. To disable it (e.g. behind a corporate proxy), pass `verify_ssl=False` or set `EDGE_AGENT_VERIFY_SSL=false` in your environment.
 
+### Ollama
+
+Run agents against models on your local machine via [Ollama](https://ollama.com/). No API key required.
+
+```python
+from edge_agent import Agent
+from edge_agent.providers import OllamaProvider
+
+provider = OllamaProvider(
+    model="llama3.2",                         # optional, default "llama3.2"
+    base_url="http://localhost:11434",         # optional, default localhost
+    timeout=120,                              # optional, default 120s
+)
+
+agent = Agent(instructions="You are a helpful assistant.", provider=provider)
+result = agent.run("Hello!")
+print(result)
+```
+
+| Parameter | Default | Env var | Description |
+|---|---|---|---|
+| `model` | `"llama3.2"` | `OLLAMA_MODEL` | Ollama model name (e.g. `mistral`, `codellama`) |
+| `base_url` | `"http://localhost:11434"` | `OLLAMA_HOST` | Ollama server URL |
+| `timeout` | `120` | — | Request timeout in seconds |
+
+All agent types (`Agent`, `Guardrail`, `Router`, `Evaluator`, `Fallback`), `Chain`, `Session`, structured output (`output_type`), and tool calling work with the Ollama provider. Use a model that supports function calling and structured output (e.g. `llama3.2`, `mistral`).
+
+See [`examples/14_ollama.py`](examples/14_ollama.py) for a runnable local demo using `OllamaProvider` with tools.
+
 ### Custom Providers
 
 You can add support for any LLM by implementing the `Provider` abstract class:
@@ -958,6 +987,7 @@ See the [`examples/`](examples/) directory:
 | `11_full_chain.py` | All agent types in one chain |
 | `12_mcp.py` | MCP server connection and tool usage |
 | `13_mcp_config.py` | Load MCP servers from a JSON config file |
+| `14_ollama.py` | Explicit `OllamaProvider` demo with local tool calling |
 | `multi_tool_demo/` | Tools across multiple files, flat vs. router comparison |
 | `mcp_demo/` | Load MCP servers from a `mcp.json` config file and run an agent against them |
 | [`advanced_features_demo.py`](advanced_features_demo.py) | Template variables, file-based prompts, and structured output |
@@ -965,8 +995,8 @@ See the [`examples/`](examples/) directory:
 ## Development
 
 ```bash
-# Install dev dependencies
-uv pip install -e ".[dev]"
+# Install with dev dependencies
+uv sync --dev
 
 # Run tests
 uv run pytest tests/ -v
