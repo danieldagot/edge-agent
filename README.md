@@ -4,7 +4,7 @@
 
 Many popular agent stacks make simple workflows feel heavyweight: large dependency trees, lots of boilerplate, and framework surface area that dwarfs the problem you are solving. Edge Agent is built for the opposite: **full-featured agent behavior without the bloat**, so you can ship agents that stay easy to read, test, and own.
 
-> **Built-in providers: Gemini and Ollama.** Edge Agent ships with providers for Google's Gemini models and locally running Ollama instances. The provider interface is open for extension — see [Custom Providers](#custom-providers) to add your own.
+> **Built-in providers: Gemini, Ollama, and Amazon Bedrock.** Edge Agent ships with providers for Google's Gemini models, locally running Ollama instances, and Amazon Bedrock. The provider interface is open for extension — see [Custom Providers](#custom-providers) to add your own.
 
 ## Features
 
@@ -937,6 +937,121 @@ All agent types (`Agent`, `Guardrail`, `Router`, `Evaluator`, `Fallback`), `Chai
 
 See [`examples/14_ollama.py`](examples/14_ollama.py) for a runnable local demo using `OllamaProvider` with tools.
 
+### Bedrock
+
+Run agents against Amazon Bedrock models using the Converse API. Authenticate with a **Bedrock API key** (Bearer token) — no `boto3` required.
+
+**Setup:**
+
+1. Open the [Amazon Bedrock console](https://console.aws.amazon.com/bedrock) → **API keys** → **Generate**
+2. Export the key:
+
+```bash
+export AWS_BEARER_TOKEN_BEDROCK=<your-key>
+# Optional: set model (default: us.anthropic.claude-sonnet-4-20250514-v1:0)
+export BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
+# Optional: set region (default: us-east-1)
+export AWS_DEFAULT_REGION=us-east-1
+```
+
+**Usage — minimal (env vars):**
+
+```python
+from edge_agent import Agent
+from edge_agent.providers import BedrockProvider
+
+# API key, model, and region all resolved from env vars
+provider = BedrockProvider()
+
+agent = Agent(instructions="You are a helpful assistant.", provider=provider)
+result = agent.run("Hello!")
+print(result)
+```
+
+**Usage — explicit (all parameters inline):**
+
+```python
+from edge_agent import Agent
+from edge_agent.providers import BedrockProvider
+
+provider = BedrockProvider(
+    api_key="your-key",                                      # or set AWS_BEARER_TOKEN_BEDROCK env var
+    model_id="us.anthropic.claude-sonnet-4-20250514-v1:0",   # or set BEDROCK_MODEL_ID env var
+    region_name="us-east-1",                                 # or set AWS_DEFAULT_REGION env var
+)
+
+agent = Agent(instructions="You are a helpful assistant.", provider=provider)
+result = agent.run("Hello!")
+print(result)
+```
+
+**Choosing a model:**
+
+Pass any Bedrock model ID or cross-region inference profile ID as `model_id`:
+
+```python
+# Anthropic Claude
+provider = BedrockProvider(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+
+# Amazon Titan
+provider = BedrockProvider(model_id="amazon.titan-text-lite-v1")
+
+# Meta Llama
+provider = BedrockProvider(model_id="meta.llama3-8b-instruct-v1:0")
+```
+
+| Parameter | Default | Env var | Description |
+|---|---|---|---|
+| `api_key` | — | `AWS_BEARER_TOKEN_BEDROCK` | Bedrock API key (Bearer token) |
+| `model_id` | `"us.anthropic.claude-sonnet-4-20250514-v1:0"` | `BEDROCK_MODEL_ID` | Bedrock model ID or inference profile ID |
+| `region_name` | `"us-east-1"` | `AWS_DEFAULT_REGION` | AWS region |
+| `timeout` | `120` | — | Request timeout in seconds |
+| `max_retries` | `3` | — | Retries on throttling (429) |
+| `retry_backoff` | `2.0` | — | Backoff multiplier between retries |
+| `inference_config` | `None` | — | Generic Converse params: `maxTokens`, `temperature`, `topP`, `stopSequences` |
+| `additional_model_request_fields` | `None` | — | Model-family-specific params (e.g. `top_k` for Anthropic) |
+| `supports_tool_use` | `True` | — | Set `False` if the model doesn't support tool calling |
+| `supports_structured_output` | `False` | — | Set `True` only if the model natively supports JSON output |
+
+**Inference config vs. additional model request fields:**
+
+`inference_config` is for parameters common across all Bedrock models (temperature, max tokens). `additional_model_request_fields` is for parameters specific to a model family (e.g. Anthropic's `top_k`). Keep them separate — Bedrock rejects model-specific params in the generic config.
+
+```python
+provider = BedrockProvider(
+    inference_config={"maxTokens": 1024, "temperature": 0.7},
+    additional_model_request_fields={"top_k": 40},
+)
+```
+
+**Structured output:**
+
+Bedrock's Converse API does not have a native `responseSchema` parameter. When you use `output_type`, the provider injects a JSON-mode prompt into the system message and the agent loop parses the response. This works well with capable models (Claude, Llama, etc.) but is not as strict as Gemini's native schema enforcement.
+
+**Capability flags:**
+
+Not all Bedrock models support the same features. Use capability flags to avoid silent failures:
+
+```python
+# Model without tool support
+provider = BedrockProvider(supports_tool_use=False)
+
+# Model with native JSON output
+provider = BedrockProvider(supports_structured_output=True)
+```
+
+If `supports_tool_use=False` and the agent has tools, the provider raises immediately with a clear error.
+
+**Known limitations:**
+
+- No streaming support (uses Converse, not ConverseStream)
+- Structured output relies on prompt-based JSON mode, not native schema enforcement
+- Text-only (no image/audio input or output)
+- No prompt management resource support
+- API key auth only (AWS Profile and Access Keys auth coming soon)
+
+See [`examples/15_bedrock.py`](examples/15_bedrock.py) for a runnable demo with tool calling and structured output.
+
 ### Custom Providers
 
 You can add support for any LLM by implementing the `Provider` abstract class:
@@ -988,6 +1103,7 @@ See the [`examples/`](examples/) directory:
 | `12_mcp.py` | MCP server connection and tool usage |
 | `13_mcp_config.py` | Load MCP servers from a JSON config file |
 | `14_ollama.py` | Explicit `OllamaProvider` demo with local tool calling |
+| `15_bedrock.py` | Amazon Bedrock: API key auth, tool calling, structured output |
 | `multi_tool_demo/` | Tools across multiple files, flat vs. router comparison |
 | `mcp_demo/` | Load MCP servers from a `mcp.json` config file and run an agent against them |
 | [`advanced_features_demo.py`](advanced_features_demo.py) | Template variables, file-based prompts, and structured output |

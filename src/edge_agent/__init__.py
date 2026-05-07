@@ -1,6 +1,7 @@
 """edge-agent — A minimal, zero-dependency AI agent framework."""
 
 from edge_agent.agent import Agent, AgentType, Evaluator, Fallback, Guardrail, Router
+from edge_agent.providers.bedrock import BedrockProvider
 from edge_agent.providers.ollama import OllamaProvider
 from edge_agent.chain import Chain
 from edge_agent.dotenv import dotenv_values, find_dotenv, load_dotenv
@@ -22,6 +23,7 @@ __all__ = [
     "Agent",
     "AgentStep",
     "AgentType",
+    "BedrockProvider",
     "Chain",
     "Evaluator",
     "Fallback",

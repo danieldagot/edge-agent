@@ -1,6 +1,6 @@
 [project]
 name = "edge-agent"
-version = "0.3.0"
+version = "0.4.0"
 description = "Small stdlib-only agent framework with tools, MCP, chains, and modern agent types"
 readme = "README.md"
 license = { text = "MIT" }
